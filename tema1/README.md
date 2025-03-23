@@ -50,42 +50,42 @@ Testcases:
 ----------
 1. Test pentru cifru de substituție:
    - Fișierul de intrare ("mesaj.txt"):
-         ```
+  
          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-         ```
+     
    - Rulați:
-      ```powershell
+   
          ./app -e mesaj.txt -o criptat.txt -alg sub
-         ```
+     
    - Rezultatul din "criptat.txt" va fi:
-         ```
+   
          Sgktd ohlxd rgsgk loz qdtz, egflteztzxk qroholeofu tsoz, ltr rg toxldgr ztdhgk ofeororxfz xz sqwgkt tz rgsgkt dqufq qsojxq. Xz tfod qr dofod ctfoqd, jxol fglzkxr tbtkeozqzogf xssqdeg sqwgkol folo xz qsojxoh tb tq egddgrg egfltjxqz. Rxol qxzt okxkt rgsgk of kthktitfrtkoz of cgsxhzqzt ctsoz tllt eossxd rgsgkt tx yxuoqz fxssq hqkoqzxk. Tbethztxk lofz geeqteqz exhorqzqz fgf hkgortfz, lxfz of exshq jxo gyyoeoq rtltkxfz dgssoz qfod or tlz sqwgkxd.
-         ```
+         
    - Pentru decriptare, rulați:
-         ```powershell
+   
          ./app -d criptat.txt -o decriptat.txt -alg sub
-         ```
+         
    - Fișierul "decriptat.txt" va conține textul original.
 
 2. Test pentru cifru de transpunere:
    - Fișierul de intrare ("mesaj.txt"):
-         ```
+   
          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
-         ```
+         
    - Rulați:
-         ```powershell
+   
          ./app -e mesaj.txt -o criptat.txt -alg trans
-            ```
+         
    - Rezultatul din "criptat.txt" va fi:
-            ```
+   
             o uo  tocudsgisdioercd lrtl nlatidnvaq t ranlobsstip cocetua ro redt ute el oeutlpa.ces atptnpd,nnlqocdr la elr
             ep oim se pie,d s pidntb dra q e mmn,iouxiiumlrn aueamonu str onperiot iscuoe inaruEprncccdtnons caifasnotidtbm_rimlsa,ntric teoudm iuuae omai. m iemunrect a o i q eodoq.iuieliehe vpele ldrug lat euioe iaore t pufieuminisau
             Lmsdrtecetainl  emtonit oeoegauUnai i ssdetolcaiiulix m saD eudr rninlavtsiml fau irxt tcaua  ituiu  i etl m  o.
-            ```
+            
    - Pentru decriptare, rulați:
-            ```powershell
+   
          ./app -d criptat.txt -o decriptat.txt -alg trans
-            ```
+         
    - Fișierul "decriptat.txt" va conține (la final fiind un caracter de umplere "_").
 
 Abordare de implementare:
