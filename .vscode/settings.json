@@ -1,0 +1,9 @@
+{
+    "C_Cpp.errorSquiggles": "disabled",
+    "files.associations": {
+        "rsa_gmp.h": "c",
+        "tea.h": "c",
+        "rsa.h": "c",
+        "aes_1.h": "c"
+    }
+}
