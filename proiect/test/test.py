@@ -21,7 +21,7 @@ def generate_random_text(file_path, size_gb=3.8):
 
 if __name__ == "__main__":
     file_path = "message.txt"
-    sz = 1 
+    sz = 3.5
     print(f"Generating {sz} GB of random text in '{file_path}'...")
     generate_random_text(file_path, size_gb=sz)
     print("Done!")

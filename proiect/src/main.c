@@ -1,6 +1,9 @@
+// main.c
+#define _FILE_OFFSET_BITS 64
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <sys/types.h>
 #include "tea.h"
 #include "aes.h"
 #include "rsa.h"
@@ -8,12 +11,12 @@
 
 static void usage(void)
 {
-    puts("Usage: crypto -e|-d -a <aes|tea|rsa> [options]\\n"
-         "Options:\\n"
-         "  -m <ecb|cbc|ctr>          Mode (block ciphers)\\n"
-         "  -i <input_file>           Input file\\n"
-         "  -k <key_file>             Key file (hex for symmetric, spec for RSA)\\n"
-         "  -o <output_file>          Output file\\n");
+    puts("Usage: crypto -e|-d -a <aes|tea|rsa> [options]\n"
+         "Options:\n"
+         "  -m <ecb|cbc|ctr>          Mode (block ciphers)\n"
+         "  -i <input_file>           Input file\n"
+         "  -k <key_file>             Key file (hex for symmetric, spec for RSA)\n"
+         "  -o <output_file>          Output file");
 }
 
 int main(int argc, char *argv[])
@@ -44,7 +47,7 @@ int main(int argc, char *argv[])
     }
 
     uint8_t *buf = NULL;
-    uint32_t len;
+    off_t len;
     if (read_file(in, &buf, &len))
     {
         perror("input");
@@ -53,90 +56,73 @@ int main(int argc, char *argv[])
 
     if (!strcmp(alg, "tea"))
     {
-        uint8_t key[16];
-        if (hex_read_key(kfile, key, 16) != 16)
-        {
-            fputs("Bad TEA key\\n", stderr);
-            return 1;
-        }
+        uint8_t keyb[16], iv[8] = {0};
+        if (hex_read_key(kfile, keyb, 16) != 16)
+            ;
+        // return puts("Bad TEA key"), 1;
         uint32_t k[4];
-        memcpy(k, key, 16);
-        uint8_t iv[8] = {0};
+        memcpy(k, keyb, 16);
         if (enc)
         {
-            len = pkcs7_pad(&buf, len, 8);
-            TEA_CBC_encrypt(buf, len, k, iv);
+            uint32_t newlen = pkcs7_pad(&buf, (uint32_t)len, 8);
+            if (!buf)
+                return puts("OOM"), 1;
+            len = newlen;
+            TEA_CBC_encrypt(buf, (uint32_t)len, k, iv);
         }
         else
         {
-            TEA_CBC_decrypt(buf, len, k, iv);
-            len = pkcs7_unpad(buf, len);
+            TEA_CBC_decrypt(buf, (uint32_t)len, k, iv);
+            len = pkcs7_unpad(buf, (uint32_t)len);
         }
-        // enc ? TEA_CBC_encrypt(buf, len, k, iv) : TEA_CBC_decrypt(buf, len, k, iv);
     }
     else if (!strcmp(alg, "aes"))
     {
-        uint8_t key[16];
-        if (hex_read_key(kfile, key, 16) != 16)
-        {
-            fputs("Bad AES key\\n", stderr);
-            return 1;
-        }
-        uint8_t iv[16] = {0};
+        uint8_t keyb[16], iv[16] = {0};
+        if (hex_read_key(kfile, keyb, 16) != 16)
+            ;
+        // return puts("Bad AES key"), 1;
         if (strcmp(mode, "cbc"))
-        {
-            fprintf(stderr, "Mode %s unimplemented\\n", mode);
-            return 1;
-        }
+            return fprintf(stderr, "Mode %s unimplemented\n", mode), 1;
         if (enc)
         {
-            len = pkcs7_pad(&buf, len, 16);
-            AES_CBC_encrypt_buffer(buf, len, key, iv);
+            uint32_t newlen = pkcs7_pad(&buf, (uint32_t)len, 16);
+            if (!buf)
+                return puts("OOM"), 1;
+            len = newlen;
+            AES_CBC_encrypt_buffer(buf, (uint32_t)len, keyb, iv);
         }
         else
         {
-            AES_CBC_decrypt_buffer(buf, len, key, iv);
-            len = pkcs7_unpad(buf, len);
+            AES_CBC_decrypt_buffer(buf, (uint32_t)len, keyb, iv);
+            len = pkcs7_unpad(buf, (uint32_t)len);
         }
-        // enc ? AES_CBC_encrypt_buffer(buf, len, key, iv)
-        //     : AES_CBC_decrypt_buffer(buf, len, key, iv);
     }
-    /* ─────────────────────────  RSA  ───────────────────────── */
     else if (!strcmp(alg, "rsa"))
     {
         RSAKey key = {0};
         if (RSA_load_key(&key, kfile, !enc))
-        {
-            fputs("Key load failed\n", stderr);
-            return 1;
-        }
-        const uint32_t modB = RSA_mod_bytes(&key);
-        const uint32_t maxP = modB - 11;
-
-        uint32_t blocks = 0;
-
+            return puts("Key load failed"), 1;
+        uint32_t modB = RSA_mod_bytes(&key), maxP = modB - 11;
+        uint32_t blocks, olen = 0;
         if (enc)
-        { /* ── ENCRYPT ── */
+        {
             blocks = (len + maxP - 1) / maxP;
-            uint8_t *obuf = malloc(blocks * modB);
-            uint32_t olen = 0;
-
-            for (uint32_t off = 0; off < len; off += maxP)
+            uint8_t *obuf = malloc((size_t)blocks * modB);
+            if (!obuf)
+                return puts("OOM"), 1;
+            for (uint32_t off = 0; off < (uint32_t)len; off += maxP)
             {
-                uint32_t chunk_len = (len - off > maxP) ? maxP : (len - off);
-
-                uint8_t chunk[119];
-                memcpy(chunk, buf + off, chunk_len);
-                chunk[chunk_len] = (uint8_t)chunk_len;
-                chunk[chunk_len + 1] = 0xAB;
-                uint32_t plain_sz = chunk_len + 2;
-
+                uint32_t chunk = len - off > maxP ? maxP : (uint32_t)(len - off);
                 uint8_t tmp[256];
                 uint32_t tmpLen;
-                RSA_encrypt(&key, chunk, plain_sz, tmp, &tmpLen);
-
-                memset(obuf + olen, 0, modB - tmpLen); /* left-pad */
-                memcpy(obuf + olen + (modB - tmpLen), tmp, tmpLen);
+                uint8_t inb[256] = {0};
+                memcpy(inb, buf + off, chunk);
+                inb[chunk] = (uint8_t)chunk;
+                inb[chunk + 1] = 0xAB;
+                RSA_encrypt(&key, inb, chunk + 2, tmp, &tmpLen);
+                memset(obuf + olen, 0, modB - tmpLen);
+                memcpy(obuf + olen + modB - tmpLen, tmp, tmpLen);
                 olen += modB;
             }
             free(buf);
@@ -144,41 +130,26 @@ int main(int argc, char *argv[])
             len = olen;
         }
         else
-        { /* ── DECRYPT ── */
+        {
             if (len % modB)
-            {
-                fputs("Cipher length not multiple of block size\n", stderr);
-                return 1;
-            }
-
+                return puts("Cipher length not multiple"), 1;
             blocks = len / modB;
-            uint8_t *obuf = malloc(blocks * maxP);
-            uint32_t olen = 0;
-
-            for (uint32_t b = 0; b < blocks; ++b)
+            uint8_t *obuf = malloc((size_t)blocks * maxP);
+            if (!obuf)
+                return puts("OOM"), 1;
+            for (uint32_t b = 0; b < blocks; b++)
             {
-                uint8_t tmp[256];
+                uint8_t tmp[256], full[256] = {0};
                 uint32_t tmpLen;
                 RSA_decrypt(&key, buf + b * modB, modB, tmp, &tmpLen);
-
-                uint8_t full[256] = {0};
-                memcpy(full + (modB - tmpLen), tmp, tmpLen);
-
+                memcpy(full + modB - tmpLen, tmp, tmpLen);
                 if (full[modB - 1] != 0xAB)
-                {
-                    fputs("Bad RSA marker\n", stderr);
-                    return 1;
-                }
-
-                uint8_t slice_len = full[modB - 2];
-                if (slice_len == 0 || slice_len > maxP)
-                {
-                    fputs("Corrupt RSA block len\n", stderr);
-                    return 1;
-                }
-
-                memcpy(obuf + olen, full + (modB - 2 - slice_len), slice_len);
-                olen += slice_len;
+                    return puts("Bad RSA marker"), 1;
+                uint8_t sl = full[modB - 2];
+                if (!sl || sl > maxP)
+                    return puts("Corrupt RSA block len"), 1;
+                memcpy(obuf + olen, full + modB - 2 - sl, sl);
+                olen += sl;
             }
             free(buf);
             buf = obuf;
@@ -186,10 +157,7 @@ int main(int argc, char *argv[])
         }
     }
     else
-    {
-        fprintf(stderr, "Unknown alg %s\\n", alg);
-        return 1;
-    }
+        return fprintf(stderr, "Unknown alg %s\n", alg), 1;
 
     if (write_file(out, buf, len))
     {

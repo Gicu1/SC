@@ -1,35 +1,56 @@
+#define _FILE_OFFSET_BITS 64
 #include "utils.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-int read_file(const char *path, uint8_t **buf, uint32_t *len)
+int read_file(const char *path, uint8_t **buf, off_t *len)
 {
     FILE *f = fopen(path, "rb");
     if (!f)
         return -1;
-    fseek(f, 0, SEEK_END);
-    *len = ftell(f);
-    fseek(f, 0, SEEK_SET);
-    *buf = malloc(*len);
-    if (!*buf)
+    if (fseeko(f, 0, SEEK_END) != 0)
     {
         fclose(f);
         return -1;
     }
-    fread(*buf, 1, *len, f);
+    off_t sz = ftello(f);
+    if (sz < 0)
+    {
+        fclose(f);
+        return -1;
+    }
+    *len = sz;
+    if (fseeko(f, 0, SEEK_SET) != 0)
+    {
+        fclose(f);
+        return -1;
+    }
+    uint8_t *b = malloc((size_t)sz);
+    if (!b)
+    {
+        fclose(f);
+        return -1;
+    }
+    size_t r = fread(b, 1, (size_t)sz, f);
     fclose(f);
+    if (r != (size_t)sz)
+    {
+        free(b);
+        return -1;
+    }
+    *buf = b;
     return 0;
 }
 
-int write_file(const char *path, const uint8_t *buf, uint32_t len)
+int write_file(const char *path, const uint8_t *buf, off_t len)
 {
     FILE *f = fopen(path, "wb");
     if (!f)
         return -1;
-    fwrite(buf, 1, len, f);
+    size_t w = fwrite(buf, 1, (size_t)len, f);
     fclose(f);
-    return 0;
+    return w == (size_t)len ? 0 : -1;
 }
 
 static uint8_t hex_val(char c)
@@ -55,7 +76,7 @@ int hex_read_key(const char *path, uint8_t *buf, uint32_t buf_len)
         return -1;
     }
     fclose(f);
-
+    line[strcspn(line, "\r\n")] = '\0';
     size_t len = strlen(line);
     if (len & 1)
         return -1;

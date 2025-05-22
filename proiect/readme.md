@@ -21,7 +21,7 @@ This repository contains an individual implementation **from scratch** (no exter
 ## Building
 Requires **GCC** (or Clang) and GNU Make.
 ```bash
-gcc -std=c11 -O2 -Wall -Wextra src/*.c -o crypto.exe
+gcc -std=c11 -O2 -Wall -Wextra src/*.c -o crypto.exe -lgmp
 ```
 ## Usage
 ### Symmetric encryption/decryption (AES or TEA)
